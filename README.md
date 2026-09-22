@@ -1,72 +1,54 @@
-# 🌅 Day/Night Video Wallpaper for Windows
+# Day/Night Video Wallpaper
 
-Automatically switch your Windows desktop wallpaper based on the time of day — morning, day, sunset, and night.
+Automatic time-based wallpaper switcher for Windows 10/11. Swaps desktop wallpaper and lock screen image according to a configurable daily schedule (morning, day, sunset, night).
 
-![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-blue?logo=windows)
-![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-yellow?logo=python)
+Optionally plays looping video directly on the desktop behind icons using MPV.
 
-## ✨ Features
+## How it works
 
-- **Time-based wallpaper switching** — 4 periods: morning, day, sunset, night
-- **Static mode** — Extracts a frame from video and sets it as wallpaper + lock screen
-- **Live video mode** — Plays video directly on your desktop behind icons (using MPV)
-- **Lively Wallpaper integration** — Works with [Lively Wallpaper](https://www.rocksdanister.com/lively/) app
-- **Auto-scheduling** — Registers to Windows Task Scheduler for seamless automation
-- **Lock screen support** — Also changes the lock screen to match the time period
-- **Zero UI** — Runs completely in the background, no console windows
+Four time periods are defined in `config.json`. At each transition, the active script either:
 
-## 📁 Project Structure
+1. **Static mode** (`wallpaper_switch.py`) — extracts a single frame from the matching video via FFmpeg, sets it as the desktop wallpaper and lock screen.
+2. **Live mode** (`video_wallpaper.py`) — embeds MPV into the WorkerW desktop window and loops the video. Monitors for period changes and swaps the video automatically.
+3. **Lively mode** (`lively_switch.py`) — delegates to [Lively Wallpaper](https://www.rocksdanister.com/lively/) if installed.
+
+`install.py` registers a Windows Task Scheduler entry so everything runs at login and at each scheduled transition. No manual intervention needed after setup.
+
+## Requirements
+
+- Python 3.8+
+- FFmpeg (for frame extraction)
+- MPV (only for live video mode)
 
 ```
-wallpaper/
-├── config.json            # Schedule and video configuration
-├── video_wallpaper.py     # Live video wallpaper engine (MPV-based)
-├── wallpaper_switch.py    # Static wallpaper + lock screen switcher
-├── lively_switch.py       # Lively Wallpaper integration
-├── install.py             # Task Scheduler auto-installer
-├── convert_videos.bat     # Video format converter (to H.264 MP4)
-├── dump_windows.py        # Debug utility for desktop window hierarchy
-├── videos/                # Your video files go here (not tracked by git)
-│   ├── morning.mp4
-│   ├── day.mp4
-│   ├── sunset.mp4
-│   └── night.mp4
-└── frames/                # Auto-generated extracted frames
+winget install Gyan.FFmpeg
+winget install shinchiro.mpv
 ```
 
-## 🚀 Getting Started
+## Setup
 
-### Prerequisites
+Clone the repo and drop your video files into `videos/`:
 
-- **Python 3.8+** — [Download](https://www.python.org/downloads/)
-- **FFmpeg** — Required for frame extraction
-
-  ```bash
-  # via winget
-  winget install Gyan.FFmpeg
-
-  # or via Chocolatey
-  choco install ffmpeg
-  ```
-
-- **MPV** *(optional, for live video mode)* — [Download](https://mpv.io/)
-
-  ```bash
-  winget install shinchiro.mpv
-  ```
-
-### 1. Clone and prepare videos
-
-```bash
-git clone https://github.com/YOUR_USERNAME/wallpaper.git
+```
+git clone <repo-url>
 cd wallpaper
 ```
 
-Place your 4 video files in the `videos/` folder. You can use any short looping videos (10-30 seconds recommended).
+The videos folder expects one file per period. Names are configured in `config.json` — defaults:
 
-### 2. Configure schedule
+```
+videos/
+  morning.mp4
+  day.mp4
+  sunset.mp4
+  night.mp4
+```
 
-Edit `config.json` to set your time schedule and video paths:
+Short loops (10-30s) work best. If your source files aren't H.264 MP4, run `convert_videos.bat` first.
+
+## Configuration
+
+Edit `config.json`:
 
 ```json
 {
@@ -87,76 +69,53 @@ Edit `config.json` to set your time schedule and video paths:
 }
 ```
 
-> **Note:** Schedule uses decimal hours. For example, `19.5` = 19:30 (7:30 PM).
+Schedule values are decimal hours (`19.5` = 19:30). `frame_position` controls where in the video the static frame is grabbed (0.0 = start, 1.0 = end). `wallpaper_style` accepts `center`, `tile`, `stretch`, `fit`, `fill`, or `span`.
 
-### 3. Test it
+## Usage
 
-```bash
-# Static wallpaper mode
+Test manually:
+
+```
 python wallpaper_switch.py
-
-# Live video mode (plays video behind desktop icons)
 python video_wallpaper.py
 ```
 
-### 4. Auto-schedule
+Register to Task Scheduler for automatic switching:
 
-Register the wallpaper switcher to run automatically at login and at each time transition:
-
-```bash
+```
 python install.py
 ```
 
-This creates a Windows Task Scheduler entry with triggers at:
-- 🔑 User login
-- 🌄 06:00 — Morning
-- ☀️ 10:00 — Day
-- 🌇 17:00 — Sunset
-- 🌙 19:30 — Night
+This creates triggers at login, 06:00, 10:00, 17:00, and 19:30. The scheduled task runs silently in the background via a generated VBScript wrapper.
 
-### 5. (Optional) Convert videos
+To remove:
 
-If your videos are not in H.264 MP4 format:
-
-```bash
-convert_videos.bat
 ```
-
-## 🔧 Configuration
-
-### Schedule
-
-| Period    | Default Time | Description         |
-|-----------|-------------|---------------------|
-| `morning` | 06:00       | Sunrise / early day |
-| `day`     | 10:00       | Bright daylight     |
-| `sunset`  | 17:00       | Golden hour         |
-| `night`   | 19:30       | After dark          |
-
-### Wallpaper Style
-
-The `wallpaper_style` option supports: `center`, `tile`, `stretch`, `fit`, `fill` (default), `span`.
-
-## ❌ Uninstall
-
-Remove the scheduled task:
-
-```bash
 python install.py --remove
-# or manually:
-schtasks /delete /tn "CustomWallpaperSwitch" /f
 ```
 
-## 🐛 Troubleshooting
+## File overview
 
-| Problem | Solution |
-|---------|----------|
-| Wallpaper doesn't change | Run `python wallpaper_switch.py` manually to check for errors |
-| "FFmpeg not found" | Make sure FFmpeg is in your PATH, restart terminal after install |
-| Video won't play | Convert with `convert_videos.bat` to ensure H.264 MP4 format |
-| Live video mode flickers | Try different `--vo` options in `video_wallpaper.py` |
-| Lock screen not updating | May require admin privileges for registry fallback |
+| File | Purpose |
+|------|---------|
+| `config.json` | Schedule times, video paths, display settings |
+| `wallpaper_switch.py` | Static wallpaper + lock screen switcher |
+| `video_wallpaper.py` | Live video wallpaper via MPV on WorkerW |
+| `lively_switch.py` | Lively Wallpaper integration |
+| `install.py` | Task Scheduler registration |
+| `convert_videos.bat` | Batch convert videos to H.264 MP4 |
+| `dump_windows.py` | Debug helper — dumps WorkerW/Progman window tree |
 
-## 📝 License
+## Troubleshooting
 
-This project is open source and available under the [MIT License](LICENSE).
+**Wallpaper not changing** — run `python wallpaper_switch.py` directly and check the output.
+
+**FFmpeg/MPV not found** — make sure they're on your PATH. Restart your terminal after installing.
+
+**Lock screen not updating** — the WinRT API method works without admin. The registry fallback requires elevation.
+
+**Live video flickers or doesn't appear** — the WorkerW trick depends on the shell state. Restarting Explorer usually fixes it.
+
+## License
+
+MIT
