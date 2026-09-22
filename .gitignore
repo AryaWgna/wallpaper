@@ -1,0 +1,37 @@
+# Video files (too large for git, user-specific content)
+videos/*.mp4
+videos/*.mkv
+videos/*.avi
+videos/*.webm
+videos/*.mov
+
+# Extracted frames (auto-generated)
+frames/*.jpg
+frames/*.png
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime files
+video_wallpaper.pid
+*.log
+mpv_debug.log
+video_debug.log
+
+# Generated files with local paths (contains user-specific absolute paths)
+run_hidden.vbs
+Start_Live_Wallpaper.vbs
+Stop_Live_Wallpaper.vbs
+Test_Wallpaper.bat
+task_schedule.xml
+
+# Reference documents
+*.pdf
+
+# Misc
+scratch/
+*.tmp
+Thumbs.db
+desktop.ini

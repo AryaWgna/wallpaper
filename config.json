@@ -1,0 +1,16 @@
+{
+    "schedule": {
+        "morning": 6.0,
+        "day": 10.0,
+        "sunset": 17.0,
+        "night": 19.0
+    },
+    "videos": {
+        "morning": "videos/Arcadia Bay Morning.mp4",
+        "day": "videos/Arcadia Bay Day.mp4",
+        "sunset": "videos/Arcadia Bay Sunset.mp4",
+        "night": "videos/Arcadia Bay Night.mp4"
+    },
+    "frame_position": 0.5,
+    "wallpaper_style": "fill"
+}
