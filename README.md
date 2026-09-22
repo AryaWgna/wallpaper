@@ -4,6 +4,8 @@ Automatic time-based wallpaper switcher for Windows 10/11. Swaps desktop wallpap
 
 Optionally plays looping video directly on the desktop behind icons using MPV.
 
+*Baca dalam [Bahasa Indonesia](README.id.md).*
+
 ## How it works
 
 Four time periods are defined in `config.json`. At each transition, the active script either:
