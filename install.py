@@ -1,12 +1,13 @@
 """
 install.py — Daftarkan wallpaper switcher ke Windows Task Scheduler.
 
-Membuat 5 trigger:
+Membuat 6 trigger:
   1. Saat login (AtLogon)
-  2. Jam 06:00 (morning)
-  3. Jam 10:00 (day)
-  4. Jam 17:00 (sunset)
-  5. Jam 19:30 (night)
+  2. Saat bangun dari sleep/hibernate (EventTrigger)
+  3. Jam 06:00 (morning)
+  4. Jam 10:00 (day)
+  5. Jam 17:00 (sunset)
+  6. Jam 19:30 (night)
 
 Jalankan: python install.py
 Uninstall: python install.py --remove
@@ -78,6 +79,22 @@ def build_task_xml(config):
     logon_trigger = ET.SubElement(triggers, "LogonTrigger")
     ET.SubElement(logon_trigger, "Enabled").text = "true"
     ET.SubElement(logon_trigger, "Delay").text = "PT30S"
+
+    # Trigger: saat bangun dari sleep/hibernate
+    # Event ID 1 dari Power-Troubleshooter selalu muncul waktu resume
+    event_trigger = ET.SubElement(triggers, "EventTrigger")
+    ET.SubElement(event_trigger, "Enabled").text = "true"
+    ET.SubElement(event_trigger, "Delay").text = "PT10S"
+    subscription = ET.SubElement(event_trigger, "Subscription")
+    subscription.text = (
+        "<QueryList>"
+        "<Query Id='0' Path='System'>"
+        "<Select Path='System'>"
+        "*[System[Provider[@Name='Microsoft-Windows-Power-Troubleshooter'] and EventID=1]]"
+        "</Select>"
+        "</Query>"
+        "</QueryList>"
+    )
 
     # Trigger: setiap jadwal
     for hour, minute in times:
