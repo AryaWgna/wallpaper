@@ -80,11 +80,23 @@ def set_lively_wallpaper(video_path):
     if not lively_exe:
         return False
 
-    subprocess.run(
-        [lively_exe, "setwp", "--file", video_path],
-        capture_output=True,
-        **_hidden_subprocess_args(),
-    )
+    try:
+        subprocess.run(
+            [lively_exe, "setwp", "--file", video_path],
+            capture_output=True,
+            **_hidden_subprocess_args(),
+        )
+    except PermissionError:
+        # Fallback for Microsoft Store version (AppX)
+        app_id = "12030rocksdanister.LivelyWallpaper_97hta09mmv6hy!App"
+        ps_cmd = f"Start-Process 'shell:AppsFolder\\{app_id}' -ArgumentList 'setwp', '--file', '\"{video_path}\"'"
+        subprocess.run(
+            ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_cmd],
+            capture_output=True,
+            **_hidden_subprocess_args(),
+        )
+    except Exception:
+        pass
     return True
 
 
