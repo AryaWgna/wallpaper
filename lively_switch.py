@@ -43,7 +43,15 @@ def get_time_period(config):
 
 def get_lively_exe():
     """Cari Lively.exe tanpa memunculkan window."""
-    # Coba dari proses yang sedang berjalan via PowerShell (fully hidden)
+    import shutil
+    
+    # 1. Coba App Execution Alias (Jika sudah diaktifkan di Settings -> App execution aliases)
+    if shutil.which("lively.exe"):
+        return shutil.which("lively.exe")
+    elif shutil.which("lively"):
+        return shutil.which("lively")
+
+    # 2. Coba dari proses yang sedang berjalan via PowerShell (fully hidden)
     try:
         proc = subprocess.run(
             [
@@ -62,7 +70,7 @@ def get_lively_exe():
     except Exception:
         pass
 
-    # Fallback: cari langsung di WindowsApps
+    # 3. Fallback: cari langsung di WindowsApps (Bisa menyebabkan PermissionError)
     base_path = r"C:\Program Files\WindowsApps"
     search_pattern = os.path.join(
         base_path, "12030rocksdanister.LivelyWallpaper_*", "Build", "Lively.exe"
@@ -83,18 +91,15 @@ def set_lively_wallpaper(video_path):
     try:
         subprocess.run(
             [lively_exe, "setwp", "--file", video_path],
-            capture_output=True,
+            capture_output=True, check=True,
             **_hidden_subprocess_args(),
         )
     except PermissionError:
         # Fallback for Microsoft Store version (AppX)
-        app_id = "12030rocksdanister.LivelyWallpaper_97hta09mmv6hy!App"
-        ps_cmd = f"Start-Process 'shell:AppsFolder\\{app_id}' -ArgumentList 'setwp', '--file', '\"{video_path}\"'"
-        subprocess.run(
-            ["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_cmd],
-            capture_output=True,
-            **_hidden_subprocess_args(),
-        )
+        # HAPUS FALLBACK INI karena Start-Process shell:AppsFolder MENGABAIKAN argument
+        # dan SELALU membuka window Lively Wallpaper di taskbar!
+        # Solusinya: User HARUS mengaktifkan "Lively Wallpaper" di "App execution aliases" Windows.
+        pass
     except Exception:
         pass
     return True
