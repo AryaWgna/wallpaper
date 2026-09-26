@@ -82,27 +82,103 @@ def get_lively_exe():
     return None
 
 
+def _get_lively_aumid():
+    """Cari AUMID (Application User Model ID) Lively dari AppX package."""
+    try:
+        proc = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-NonInteractive",
+                "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
+                "-Command",
+                "(Get-AppxPackage | Where-Object { $_.Name -match 'LivelyWallpaper' } | "
+                "ForEach-Object { $_.PackageFamilyName + '!App' } | Select-Object -First 1)",
+            ],
+            capture_output=True, text=True, check=True,
+            **_hidden_subprocess_args(),
+        )
+        aumid = proc.stdout.strip()
+        if aumid:
+            return aumid
+    except Exception:
+        pass
+    return None
+
+
+def _activate_via_com(aumid, cli_args):
+    """Jalankan Lively MS Store via COM ApplicationActivationManager (hidden)."""
+    ps_script = f'''
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class AppActivator {{
+    [DllImport("ole32.dll")]
+    static extern int CoCreateInstance(
+        [In] ref Guid rclsid, IntPtr pUnkOuter, uint dwClsContext,
+        [In] ref Guid riid,
+        [MarshalAs(UnmanagedType.Interface)] out IApplicationActivationManager ppv);
+
+    [ComImport, Guid("2e941141-7f97-4756-ba1d-9decde894a3d"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IApplicationActivationManager {{
+        int ActivateApplication(
+            [MarshalAs(UnmanagedType.LPWStr)] string appUserModelId,
+            [MarshalAs(UnmanagedType.LPWStr)] string arguments,
+            uint options, out uint processId);
+    }}
+
+    public static uint Activate(string aumid, string args) {{
+        Guid clsid = new Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C");
+        Guid iid = new Guid("2e941141-7f97-4756-ba1d-9decde894a3d");
+        IApplicationActivationManager mgr;
+        int hr = CoCreateInstance(ref clsid, IntPtr.Zero, 0x1, ref iid, out mgr);
+        if (hr != 0) throw new Exception("CoCreateInstance failed: 0x" + hr.ToString("X"));
+        uint pid;
+        mgr.ActivateApplication(aumid, args, 0, out pid);
+        return pid;
+    }}
+}}
+"@
+[AppActivator]::Activate("{aumid}", '{cli_args}')
+'''
+    proc = subprocess.run(
+        [
+            "powershell", "-NoProfile", "-NonInteractive",
+            "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass",
+            "-Command", ps_script,
+        ],
+        capture_output=True, text=True,
+        **_hidden_subprocess_args(),
+    )
+    return proc.returncode == 0
+
+
 def set_lively_wallpaper(video_path):
     """Set wallpaper via Lively CLI tanpa window."""
     lively_exe = get_lively_exe()
-    if not lively_exe:
-        return False
 
-    try:
-        subprocess.run(
-            [lively_exe, "setwp", "--file", video_path],
-            capture_output=True, check=True,
-            **_hidden_subprocess_args(),
-        )
-    except PermissionError:
-        # Fallback for Microsoft Store version (AppX)
-        # HAPUS FALLBACK INI karena Start-Process shell:AppsFolder MENGABAIKAN argument
-        # dan SELALU membuka window Lively Wallpaper di taskbar!
-        # Solusinya: User HARUS mengaktifkan "Lively Wallpaper" di "App execution aliases" Windows.
-        pass
-    except Exception:
-        pass
-    return True
+    # 1. Coba langsung via subprocess (works untuk non-Store install)
+    if lively_exe:
+        try:
+            subprocess.run(
+                [lively_exe, "setwp", "--file", video_path],
+                capture_output=True, check=True,
+                **_hidden_subprocess_args(),
+            )
+            return True
+        except PermissionError:
+            pass  # MS Store version — lanjut ke fallback COM
+        except Exception:
+            pass
+
+    # 2. Fallback: COM ApplicationActivationManager (untuk MS Store / AppX)
+    aumid = _get_lively_aumid()
+    if aumid:
+        abs_path = os.path.abspath(video_path)
+        cli_args = f'setwp --file "{abs_path}"'
+        if _activate_via_com(aumid, cli_args):
+            return True
+
+    return False
 
 
 def main():
