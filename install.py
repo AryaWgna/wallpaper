@@ -78,6 +78,7 @@ def build_task_xml(config):
     # Trigger: saat login
     logon_trigger = ET.SubElement(triggers, "LogonTrigger")
     ET.SubElement(logon_trigger, "Enabled").text = "true"
+    ET.SubElement(logon_trigger, "Delay").text = "PT30S"
 
     # Trigger: saat bangun dari sleep/hibernate
     # Event ID 1 dari Power-Troubleshooter selalu muncul waktu resume
