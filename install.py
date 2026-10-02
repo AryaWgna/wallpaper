@@ -78,7 +78,7 @@ def build_task_xml(config):
     # Trigger: saat login
     logon_trigger = ET.SubElement(triggers, "LogonTrigger")
     ET.SubElement(logon_trigger, "Enabled").text = "true"
-    ET.SubElement(logon_trigger, "Delay").text = "PT30S"
+    ET.SubElement(logon_trigger, "Delay").text = "PT1M"  # Diubah jadi 1 menit agar Lively punya waktu untuk start
 
     # Trigger: saat bangun dari sleep/hibernate
     # Event ID 1 dari Power-Troubleshooter selalu muncul waktu resume
@@ -119,7 +119,7 @@ def build_task_xml(config):
     ET.SubElement(settings, "DisallowStartIfOnBatteries").text = "false"
     ET.SubElement(settings, "StopIfGoingOnBatteries").text = "false"
     ET.SubElement(settings, "AllowHardTerminate").text = "true"
-    ET.SubElement(settings, "StartWhenAvailable").text = "true"
+    ET.SubElement(settings, "StartWhenAvailable").text = "false"  # Matikan ini agar tidak balapan dengan startup Windows
     ET.SubElement(settings, "RunOnlyIfNetworkAvailable").text = "false"
     ET.SubElement(settings, "AllowStartOnDemand").text = "true"
     ET.SubElement(settings, "Enabled").text = "true"
