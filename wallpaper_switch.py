@@ -144,9 +144,12 @@ def set_lockscreen(image_path):
     """Set gambar sebagai lock screen Windows via PowerShell WinRT API."""
     abs_path = os.path.abspath(image_path).replace("\\", "\\\\")
 
+    # SetImageFileAsync returns IAsyncAction (bukan IAsyncOperation),
+    # jadi butuh helper terpisah: AsTask untuk IAsyncAction tanpa generic type.
     ps_script = f'''
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 
+# Helper untuk IAsyncOperation<T> (punya result)
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{
     $_.Name -eq 'AsTask' -and
     $_.GetParameters().Count -eq 1 -and
@@ -160,11 +163,23 @@ Function Await($WinRtTask, $ResultType) {{
     $netTask.Result
 }}
 
+# Helper untuk IAsyncAction (tanpa result, seperti SetImageFileAsync)
+$asTaskAction = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{
+    $_.Name -eq 'AsTask' -and
+    $_.GetParameters().Count -eq 1 -and
+    $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction'
+}})[0]
+
+Function AwaitAction($WinRtTask) {{
+    $netTask = $asTaskAction.Invoke($null, @($WinRtTask))
+    $netTask.Wait(-1) | Out-Null
+}}
+
 [Windows.System.UserProfile.LockScreen, Windows.System.UserProfile, ContentType=WindowsRuntime] | Out-Null
 [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime] | Out-Null
 
 $file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync("{abs_path}")) ([Windows.Storage.StorageFile])
-Await ([Windows.System.UserProfile.LockScreen]::SetImageFileAsync($file)) ([Windows.Foundation.IPropertyValue])
+AwaitAction ([Windows.System.UserProfile.LockScreen]::SetImageFileAsync($file))
 '''
 
     result = subprocess.run(
@@ -173,26 +188,8 @@ Await ([Windows.System.UserProfile.LockScreen]::SetImageFileAsync($file)) ([Wind
     )
 
     if result.returncode != 0:
-        # Fallback: coba via registry (butuh path gambar yang valid)
-        print(f"  [WARN] Lock screen via WinRT gagal, coba registry...")
-        try:
-            import winreg
-            key = winreg.CreateKeyEx(
-                winreg.HKEY_LOCAL_MACHINE,
-                r"SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP",
-                0,
-                winreg.KEY_SET_VALUE | winreg.KEY_WRITE,
-            )
-            abs_real = os.path.abspath(image_path)
-            winreg.SetValueEx(key, "LockScreenImagePath", 0, winreg.REG_SZ, abs_real)
-            winreg.SetValueEx(key, "LockScreenImageUrl", 0, winreg.REG_SZ, abs_real)
-            winreg.SetValueEx(key, "LockScreenImageStatus", 0, winreg.REG_DWORD, 1)
-            winreg.CloseKey(key)
-            print("  Lock   : Lock screen diganti via registry!")
-        except PermissionError:
-            print("  [WARN] Lock screen butuh akses admin untuk fallback registry")
-        except Exception as e:
-            print(f"  [WARN] Lock screen gagal: {e}")
+        stderr = result.stderr.strip()
+        print(f"  [WARN] Lock screen via WinRT gagal: {stderr}")
     else:
         print("  Lock   : Lock screen berhasil diganti!")
 
